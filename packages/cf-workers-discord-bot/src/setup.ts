@@ -27,10 +27,15 @@ const getAuthorizationCode = async (authedFetch: typeof fetch) => {
 };
 
 const deleteExistingCommands = async (
-  { applicationID }: { applicationID: string },
+  { applicationID,
+    guildID
+  }: { 
+    applicationID: string;
+    guildID: string
+  },
   authedFetch: typeof fetch
 ): Promise<void> => {
-  const url = `https://discord.com/api/v8/applications/${applicationID}/commands`;
+  const url = `https://discord.com/api/v8/applications/${applicationID}/guilds/${guildID}/commands/`;
   const response = await authedFetch(url);
   const commands = await response.json();
 
@@ -40,7 +45,7 @@ const deleteExistingCommands = async (
         command: ApplicationCommand & { id: string; application_id: string }
       ) => {
         return authedFetch(
-          `https://discord.com/api/v8/applications/${applicationID}/commands/${command.id}`,
+          `https://discord.com/api/v8/applications/${applicationID}/guilds/${guildID}/commands/${command.id}`,
           {
             method: "DELETE",
           }
@@ -53,14 +58,16 @@ const deleteExistingCommands = async (
 const createCommands = async (
   {
     applicationID,
+    guildID,
     commands,
   }: {
     applicationID: string;
+    guildID: string;
     commands: [ApplicationCommand, InteractionHandler][];
   },
   authedFetch: typeof fetch
 ): Promise<Response> => {
-  const url = `https://discord.com/api/v8/applications/${applicationID}/commands`;
+  const url = `https://discord.com/api/v8/applications/${applicationID}/guilds/${guildID}/commands`;
 
   const promises = commands.map(async ([command, handler]) => {
     const request = new Request(url, {
@@ -88,10 +95,12 @@ const createCommands = async (
 export const setup = ({
   applicationID,
   applicationSecret,
+  guildID,
   commands,
 }: {
   applicationID: string;
   applicationSecret: string;
+  guildID: string;
   commands: [ApplicationCommand, InteractionHandler][];
 }) => {
   const basicAuthFetch = authorization(fetch, {
@@ -104,8 +113,8 @@ export const setup = ({
       const bearer = await getAuthorizationCode(basicAuthFetch);
       const authedFetch = authorization(fetch, { bearer });
 
-      await deleteExistingCommands({ applicationID }, authedFetch);
-      return await createCommands({ applicationID, commands }, authedFetch);
+      await deleteExistingCommands({ applicationID, guildID }, authedFetch);
+      return await createCommands({ applicationID, guildID, commands }, authedFetch);
     } catch {
       return new Response(
         "Failed to authenticate with Discord. Are the Application ID and secret set correctly?",
